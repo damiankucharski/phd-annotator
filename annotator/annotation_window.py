@@ -6,12 +6,12 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QCheckB
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 
-from annotator.annotation_box import AnnotationBox, AnnotationLabel
-from annotator.open_annotated_dialog import OpenAnnotatedDialog
+from annotation_box import AnnotationBox, AnnotationLabel
+from open_annotated_dialog import OpenAnnotatedDialog
 
 from pathlib import Path
 
-from annotator.gems.io import Json
+from gems.io import Json
 from collections import defaultdict
 
 import pandas as pd
@@ -70,7 +70,7 @@ class AnnotationWindow(QWidget):
         self.setLayout(self.main_layout)
 
     def next_image(self, image_index=None):
-        if image_index:
+        if image_index is not None and image_index is not False:
             self.cur_im_index = image_index
         else:
             self._find_next_image_index()
@@ -126,10 +126,14 @@ class AnnotationWindow(QWidget):
         Json.save(JSON_PATH, to_save)
 
     def _find_annotation_index(self, path):
-        return self.file_paths[self.file_paths == path].index[0]
+        entry = self.file_paths[self.file_paths == path]
+        return entry.index[0]
 
     def _choose_annotated(self):
-        dlg = OpenAnnotatedDialog(list(self.annotations_dict.keys()))
+
+        annotated = [key for key, val in self.annotations_dict.items() if any(list(val.values()))]
+
+        dlg = OpenAnnotatedDialog(annotated)
 
         if dlg.exec_() == QDialog.Accepted:
             index = self._find_annotation_index(self.data_directory / dlg.annotations.currentText())
