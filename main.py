@@ -14,9 +14,6 @@ from annotator.annotation_window import AnnotationWindow
 from annotator.gems.io import Json
 
 
-PATH = "/Users/s/Library/CloudStorage/OneDrive-PolitechnikaŚląska/ECG/data/processed/20220130_scans_per_patients_pdf_converted_to_jpg"
-
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -53,8 +50,7 @@ class MainWindow(QMainWindow):
         self.annotation_window = None
 
     def select_directory(self):
-        # self.data_dir = QFileDialog.getExistingDirectory(self, "Select Directory")
-        self.data_dir = PATH
+        self.data_dir = QFileDialog.getExistingDirectory(self, "Select Directory")
         self.chosen_directory.setText(f"Data directory {self.data_dir}")
 
     def show_annotation_window(self):
