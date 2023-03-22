@@ -6,8 +6,8 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QCheckB
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 
-from annotation_box import AnnotationBox, AnnotationLabel
-from open_annotated_dialog import OpenAnnotatedDialog
+from .annotation_box import AnnotationBox, AnnotationLabel
+from .open_annotated_dialog import OpenAnnotatedDialog
 
 from pathlib import Path
 
@@ -130,7 +130,6 @@ class AnnotationWindow(QWidget):
         return entry.index[0]
 
     def _choose_annotated(self):
-
         annotated = [key for key, val in self.annotations_dict.items() if any(list(val.values()))]
 
         dlg = OpenAnnotatedDialog(annotated)

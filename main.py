@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
 )
 
-from annotation_window import AnnotationWindow
+from annotator.annotation_window import AnnotationWindow
 from gems.io import Json
 
 
