@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageQt
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QCheckBox, QDialog
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QCheckBox, QDialog, QMessageBox
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
 
@@ -11,13 +11,9 @@ from .open_annotated_dialog import OpenAnnotatedDialog
 
 from pathlib import Path
 
-from gems.io import Json
-from collections import defaultdict
-
 import pandas as pd
 
-
-JSON_PATH = Path(__file__).parent / "data" / "annotations.json"
+CSV_PATH = Path(__file__).parent / "data" / "annotations.csv"
 
 
 class AnnotationWindow(QWidget):
@@ -26,11 +22,10 @@ class AnnotationWindow(QWidget):
 
         self.cur_im_index = -1
 
-        self.annotations_dict = defaultdict(lambda: defaultdict(bool))
-        self.annotations_dict.update(Json.load(JSON_PATH))
-
         self.data_directory = Path(data_directory)
         self.file_paths = pd.Series(list(self.data_directory.rglob("*.jpg")))
+
+        self.annotations_frame = self._load_annotations_csv()
 
         self.setMinimumWidth(500)
         self.setMinimumHeight(720)
@@ -47,6 +42,9 @@ class AnnotationWindow(QWidget):
         self.next_annotation_button = QPushButton("Next")
         self.next_annotation_button.clicked.connect(self.next_image)
 
+        self.previous_annotation_button = QPushButton("Previous")
+        self.previous_annotation_button.clicked.connect(self.previous_image)
+
         self.open_annotated_button = QPushButton("Choose from annotated")
         self.open_annotated_button.clicked.connect(self._choose_annotated)
 
@@ -59,6 +57,7 @@ class AnnotationWindow(QWidget):
         self.main_layout.addWidget(self.image_label)
         self.main_layout.addWidget(self.select_annotation_check)
         self.main_layout.addWidget(self.next_annotation_button)
+        self.main_layout.addWidget(self.previous_annotation_button)
         self.main_layout.addWidget(self.open_annotated_button)
         self.main_layout.addWidget(self.close_button)
         self.main_layout.addWidget(self.show_only_unlabeled_checkbox)
@@ -69,13 +68,13 @@ class AnnotationWindow(QWidget):
 
         self.setLayout(self.main_layout)
 
-    def next_image(self, image_index=None):
+    def next_image(self, image_index=None, previous=False):
         if image_index is not None and image_index is not False:
             self.cur_im_index = image_index
         else:
-            self._find_next_image_index()
+            self._find_next_image_index(previous=previous)
 
-        cur_relative_path = self._get_cur_relative_path()
+        cur_relative_path = str(self._get_cur_relative_path())
 
         np_image = plt.imread(self.file_paths[self.cur_im_index])
         np_image_transposed = np.transpose(np_image, (1, 0, 2))[:, ::-1, :]
@@ -84,56 +83,110 @@ class AnnotationWindow(QWidget):
 
         self.loaded_image = ImageQt.ImageQt(pil_image)
         self.image_label.setPixmap(QPixmap.fromImage(self.loaded_image))
-        self.current_annotation = self.annotations_dict[cur_relative_path]
+        self.current_annotation = self.annotations_frame.loc[cur_relative_path]
+
         self.select_annotation_check.update_annotation(self.current_annotation)
 
         self.path_label.setText(cur_relative_path)
 
         self._save_annotations()
 
-    def save_annotation(self):
-        relative_path = self._get_cur_relative_path()
-        selected_annotation = self.select_annotation_radio.selected_annotation_option.value
-
-        self.annotations_dict[relative_path] = selected_annotation
+    def previous_image(self):
+        self.next_image(previous=True)
 
     def close_window(self):
         self.close()
 
-    def _get_cur_relative_path(self):
+    def _get_relative_path(self, path) -> Path:
+        relative_path = path.relative_to(self.data_directory)
+        return relative_path
+
+    def _get_cur_relative_path(self) -> Path:
         current_path = self.file_paths[self.cur_im_index]
-        relative_path = current_path.relative_to(self.data_directory)
-        return str(relative_path)
+        return self._get_relative_path(current_path)
 
-    def _next_image_index(self):
-        return self.cur_im_index + 1 if self.cur_im_index < len(self.file_paths) else 0
+    def _next_image_index(self, previous=False):
+        if previous:
+            return self.cur_im_index - 1 if self.cur_im_index > 0 else len(self.file_paths)
+        else:
+            return self.cur_im_index + 1 if self.cur_im_index < (len(self.file_paths) - 1) else 0
 
-    def _find_next_image_index(self):
-        self.cur_im_index = self._next_image_index()
-
+    def _find_next_image_index(self, previous=False):
         if self.show_only_unlabeled_checkbox.isChecked():
-            cur_relative_path = self._get_cur_relative_path()
+            index_list = np.array(self.file_paths.index)
+            un_annotated_mask = ~self._get_annotated_mask()
+            available = index_list[un_annotated_mask]
 
-            while cur_relative_path in self.annotations_dict:
-                self.cur_im_index = self._next_image_index()
-                cur_relative_path = self._get_cur_relative_path()
+            if len(available) > 0:
+                if previous:
+                    mask = available < self.cur_im_index
+                    if any(mask):
+                        mask = np.cumsum(mask)
+                        next_ind = available[np.argmax(mask)]
+                        self.cur_im_index = next_ind
+                    else:
+                        self.cur_im_index = available[-1]
+
+                else:
+                    mask = available > self.cur_im_index
+                    if any(mask):
+                        self.cur_im_index = available[np.argmax(mask)]
+                    else:
+                        self.cur_im_index = available[0]
+            else:
+                self.cur_im_index = 0
+                self._annotation_finished_dialog()
+        else:
+            self.cur_im_index = self._next_image_index(previous)
 
     def _save_annotations(self):
-        to_save = {}
-        for k, v in self.annotations_dict.items():
-            to_save[k] = dict(v)
-
-        Json.save(JSON_PATH, to_save)
+        self.annotations_frame.to_csv(CSV_PATH)
 
     def _find_annotation_index(self, path):
         entry = self.file_paths[self.file_paths == path]
         return entry.index[0]
 
-    def _choose_annotated(self):
-        annotated = [key for key, val in self.annotations_dict.items() if any(list(val.values()))]
+    def _get_annotated_mask(self):
+        return (self.annotations_frame == True).any(axis=1)
 
-        dlg = OpenAnnotatedDialog(annotated)
+    def _choose_annotated(self):
+        annotated_names = list(self.annotations_frame.index[self._get_annotated_mask()])
+
+        dlg = OpenAnnotatedDialog(annotated_names)
 
         if dlg.exec_() == QDialog.Accepted:
             index = self._find_annotation_index(self.data_directory / dlg.annotations.currentText())
             self.next_image(index)
+
+    def _load_annotations_csv(self):
+        relative_paths = [str(self._get_relative_path(path)) for path in self.file_paths]
+        if Path(CSV_PATH).exists():
+            frame = pd.read_csv(CSV_PATH, index_col=0)
+            if (len(frame) != len(relative_paths)) or (not all(frame.index == relative_paths)):
+                self._csv_mismatch()
+        else:
+            frame = pd.DataFrame(
+                columns=[str(e.value) for e in AnnotationLabel],
+                index=relative_paths,
+            )
+            frame.fillna(False, inplace=True)
+            frame.to_csv(CSV_PATH)
+        return frame
+
+    def _annotation_finished_dialog(self):
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("Attention")
+        dlg.setText("All images have been annotated")
+        button = dlg.exec_()
+
+    def _csv_mismatch(self):
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("Error")
+        dlg.setText(
+            "Filenames in annotations.csv file do not match the filenames in the selected directory. Program will close.\
+                    Choose the same directory as before or remove (rename) the annotations.csv file."
+        )
+        button = dlg.exec_()
+
+        if button == QMessageBox.Ok:
+            exit()

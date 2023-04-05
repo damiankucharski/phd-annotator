@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QCheckBox
 
 from enum import Enum
-from collections import defaultdict
+from pandas import Series
 
 from typing import List
 
@@ -11,7 +11,7 @@ class AnnotationLabel(Enum):
     Obscured = "Parts of image are obscured"
     Low_Contrast = "Low contrast between signal and image"
     Signals_Intersect = "Signals intersect"
-    Good_Quality = "Good quality, good contrast"
+    Good_Quality = "Good quality and good contrast"
 
 
 class AnnotationBox(QWidget):
@@ -24,7 +24,7 @@ class AnnotationBox(QWidget):
         for checkbox in self.checkboxes.values():
             self.layout.addWidget(checkbox)
 
-        self.selected_labels = defaultdict(bool)
+        self.selected_labels = None
 
     def _create_checkboxes(self):
         checkboxes = {}
@@ -37,7 +37,7 @@ class AnnotationBox(QWidget):
 
         return checkboxes
 
-    def update_annotation(self, annotation: dict):
+    def update_annotation(self, annotation: Series):
         self.selected_labels = annotation
         for data in AnnotationLabel:
             selected = annotation[data.value]

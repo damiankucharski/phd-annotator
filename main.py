@@ -58,9 +58,11 @@ class MainWindow(QMainWindow):
         self.annotation_window.show()
 
     def close_app(self):
-        annotations = self.annotation_window.annotations_dict
-        if annotations is not None:
-            Json.save("./annotations.json", annotations)
+        if self.annotation_window is not None:
+            annotations = self.annotation_window.annotations_frame
+            if annotations is not None:
+                from annotator.annotation_window import CSV_PATH
+                annotations.to_csv(CSV_PATH)
         self.close()
 
 
