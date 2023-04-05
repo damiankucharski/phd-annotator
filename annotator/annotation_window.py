@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image, ImageQt
 
+from sys import exit
+
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QCheckBox, QDialog, QMessageBox
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt
@@ -13,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-CSV_PATH = Path(__file__).parent / ".." / "annotations.csv"
+CSV_PATH = Path(__file__).parent / "../.." / "annotations.csv"
 
 
 class AnnotationWindow(QWidget):
@@ -24,6 +26,7 @@ class AnnotationWindow(QWidget):
 
         self.data_directory = Path(data_directory)
         self.file_paths = pd.Series(list(self.data_directory.rglob("*.jpg")))
+        self._check_if_any_filenames()
 
         self.annotations_frame = self._load_annotations_csv()
 
@@ -169,6 +172,7 @@ class AnnotationWindow(QWidget):
                 columns=[str(e.value) for e in AnnotationLabel],
                 index=relative_paths,
             )
+            frame.index.name = "Filepath"
             frame.fillna(False, inplace=True)
             frame.to_csv(CSV_PATH)
         return frame
@@ -190,3 +194,15 @@ class AnnotationWindow(QWidget):
 
         if button == QMessageBox.Ok:
             exit()
+
+    def _check_if_any_filenames(self):
+        if len(self.file_paths) > 0:
+            return
+        else:
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("Error")
+            dlg.setText("There are no .jpg files in this location, program will close")
+            button = dlg.exec_()
+
+            if button == QMessageBox.Ok:
+                exit()

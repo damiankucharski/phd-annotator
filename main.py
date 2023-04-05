@@ -14,6 +14,11 @@ from PySide6.QtWidgets import (
 from annotator.annotation_window import AnnotationWindow
 from gems.io import Json
 
+import matplotlib
+import numpy
+import pandas
+import PIL
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
