@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QFileDialog,
+    QMessageBox,
 )
 
 from annotator.annotation_window import AnnotationWindow
@@ -54,16 +55,29 @@ class MainWindow(QMainWindow):
         self.chosen_directory.setText(f"Data directory {self.data_dir}")
 
     def show_annotation_window(self):
-        self.annotation_window = AnnotationWindow(self.data_dir)
-        self.annotation_window.show()
+        if self.data_dir:
+            self.annotation_window = AnnotationWindow(self.data_dir)
+            self.annotation_window.show()
+        else:
+            self._directory_not_selected()
 
     def close_app(self):
         if self.annotation_window is not None:
             annotations = self.annotation_window.annotations_frame
             if annotations is not None:
                 from annotator.annotation_window import CSV_PATH
+
                 annotations.to_csv(CSV_PATH)
         self.close()
+
+    def _directory_not_selected(self):
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("Warning")
+        dlg.setText("Choose a directory first!")
+        button = dlg.exec_()
+
+        if button == QMessageBox.Ok:
+            return
 
 
 if __name__ == "__main__":

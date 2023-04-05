@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 
-CSV_PATH = Path(__file__).parent / "data" / "annotations.csv"
+CSV_PATH = Path(__file__).parent / ".." / "annotations.csv"
 
 
 class AnnotationWindow(QWidget):
