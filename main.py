@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         self.chosen_directory = QLabel()
         self.chosen_directory.setText("Data directory: ")
         self.button_accept = QPushButton("Start annotating")
-        self.button_close = QPushButton("Close App")
+        self.button_close = QPushButton("Save annotations and close the app")
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.button_select)
@@ -68,11 +68,9 @@ class MainWindow(QMainWindow):
 
     def close_app(self):
         if self.annotation_window is not None:
-            annotations = self.annotation_window.annotations_frame
-            if annotations is not None:
-                from annotator.annotation_window import CSV_PATH
+            self.annotation_window._save_annotations()
+            self.annotation_window.close_window()
 
-                annotations.to_csv(CSV_PATH)
         self.close()
 
     def _directory_not_selected(self):
