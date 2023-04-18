@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 
-CSV_PATH = Path(__file__).parent / "../.." / "annotations.csv"
+CSV_PATH = Path(__file__).parent / "../../../.." / "annotations.csv"
 
 
 class AnnotationWindow(QWidget):
@@ -149,8 +149,11 @@ class AnnotationWindow(QWidget):
             self.cur_im_index = self._next_image_index(previous)
 
     def _save_annotations(self):
-        self.all_annotations_frame = self.all_annotations_frame.combine_first(self.annotations_frame)
+        merged_df = self.annotations_frame.merge(self.all_annotations_frame, how="outer", on="Filepath")
+        merged_df = merged_df.fillna(value=False)
+        self.all_annotations_frame = self.annotations_frame.combine_first(self.all_annotations_frame)
         self.all_annotations_frame.to_csv(CSV_PATH)
+        self._info_dialog(f"Anootations saved to {str(CSV_PATH.resolve())}")
 
     def _find_annotation_index(self, path):
         path = self.data_directory.parent / path
@@ -183,8 +186,10 @@ class AnnotationWindow(QWidget):
 
     def _load_annotations_csv(self):
         if Path(CSV_PATH).exists():
+            self._info_dialog(f"The CSV PATH {str(CSV_PATH.resolve())} exists and file is loaded")
             frame = pd.read_csv(CSV_PATH, index_col=0)
         else:
+            self._info_dialog(f"The CSV PATH {str(CSV_PATH.resolve())} does not exist and new file is being created")
             frame = self._create_current_annotations_frame()
         return frame
 
@@ -192,6 +197,12 @@ class AnnotationWindow(QWidget):
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Attention")
         dlg.setText("All images have been annotated")
+        button = dlg.exec_()
+
+    def _info_dialog(self, toShow):
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("Attention")
+        dlg.setText(toShow)
         button = dlg.exec_()
 
     def _check_if_any_filenames(self):
